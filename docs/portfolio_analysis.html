@@ -13,7 +13,6 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
         }
-        
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -22,28 +21,24 @@
             padding: 30px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.1);
         }
-        
         .header {
             text-align: center;
             margin-bottom: 30px;
             border-bottom: 3px solid #667eea;
             padding-bottom: 20px;
         }
-        
         .header h1 {
             color: #2c3e50;
             font-size: 2.5rem;
             margin: 0;
             font-weight: 700;
         }
-        
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
-        
         .stat-card {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
@@ -52,32 +47,27 @@
             text-align: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         }
-        
         .stat-value {
             font-size: 2rem;
             font-weight: bold;
             margin: 5px 0;
         }
-        
         .stat-label {
             font-size: 0.9rem;
             opacity: 0.9;
         }
-        
         .charts-container {
             display: grid;
             grid-template-columns: 2fr 1fr;
             gap: 30px;
             margin-bottom: 30px;
         }
-        
         .chart-card {
             background: #f8f9fa;
             border-radius: 15px;
             padding: 25px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.05);
         }
-        
         .chart-title {
             font-size: 1.4rem;
             font-weight: 600;
@@ -85,13 +75,11 @@
             margin-bottom: 20px;
             text-align: center;
         }
-        
         .position-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
         }
-        
         .position-card {
             background: white;
             border-radius: 12px;
@@ -99,35 +87,29 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.08);
             border-left: 5px solid #667eea;
         }
-        
         .position-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
         }
-        
         .symbol {
             font-size: 1.3rem;
             font-weight: bold;
             color: #2c3e50;
         }
-        
         .price {
             font-size: 1.1rem;
             color: #27ae60;
             font-weight: 600;
         }
-        
         .position-details {
             color: #7f8c8d;
             font-size: 0.9rem;
         }
-        
         canvas {
             max-height: 400px !important;
         }
-        
         .data-source {
             background: #e8f4fd;
             border: 1px solid #bee5eb;
@@ -137,14 +119,12 @@
             font-size: 0.9rem;
             color: #0c5460;
         }
-        
         .loading {
             text-align: center;
             padding: 40px;
             color: #7f8c8d;
             font-style: italic;
         }
-        
         .error {
             background: #f8d7da;
             color: #721c24;
@@ -211,60 +191,124 @@
     </div>
 
     <script>
-        let charts = {};
+    (function() {
+        'use strict';
         
-        async function loadData() {
-            try {
-                const response = await fetch('https://raw.githubusercontent.com/deuxfoistrois/microcap-adapted/main/docs/latest.json?' + Date.now());
-                if (response.ok) {
-                    const data = await response.json();
+        let portfolioChart, allocationChart, positionsChart;
+        
+        function loadData() {
+            return fetch('https://raw.githubusercontent.com/deuxfoistrois/microcap-adapted/main/docs/latest.json?' + Date.now())
+                .then(function(response) {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('HTTP ' + response.status);
+                })
+                .then(function(data) {
                     document.getElementById('data-source-info').textContent = 'GitHub Raw URL';
                     return data;
-                }
-            } catch (error) {
-                console.log('Failed to load from raw URL:', error);
-            }
-            
-            document.getElementById('error').style.display = 'block';
-            return null;
+                })
+                .catch(function(error) {
+                    console.log('Data load error:', error);
+                    document.getElementById('error').style.display = 'block';
+                    return null;
+                });
         }
         
         function updateStats(data) {
-            const initial = 995.74;
-            const current = parseFloat(data.total_value);
-            const totalReturn = ((current - initial) / initial * 100).toFixed(1);
-            const dailyChange = (data.daily_changes && data.daily_changes.portfolio) ? 
-                parseFloat(data.daily_changes.portfolio.total_change) : 0;
+            var initial = 995.74;
+            var current = parseFloat(data.total_value);
+            var totalReturn = ((current - initial) / initial * 100).toFixed(1);
+            var dailyChange = 0;
+            
+            if (data.daily_changes && data.daily_changes.portfolio) {
+                dailyChange = parseFloat(data.daily_changes.portfolio.total_change);
+            }
             
             document.getElementById('current-value').textContent = '$' + current.toLocaleString();
             document.getElementById('total-return').textContent = '+' + totalReturn + '%';
             
-            const prefix = dailyChange >= 0 ? '+' : '';
-            const color = dailyChange >= 0 ? '#27ae60' : '#e74c3c';
+            var prefix = dailyChange >= 0 ? '+' : '';
+            var color = dailyChange >= 0 ? '#27ae60' : '#e74c3c';
             document.getElementById('daily-change').textContent = prefix + '$' + dailyChange.toFixed(2);
             document.getElementById('daily-change').style.color = color;
             
-            const start = new Date('2025-08-08');
-            const now = new Date(data.date);
-            const days = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+            var start = new Date('2025-08-08');
+            var now = new Date(data.date);
+            var days = Math.floor((now - start) / (1000 * 60 * 60 * 24));
             document.getElementById('days-elapsed').textContent = days;
             
             document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
         }
         
-        function createAllocationChart(data) {
-            const ctx = document.getElementById('allocationChart').getContext('2d');
+        function createPortfolioChart(data) {
+            var ctx = document.getElementById('portfolioChart').getContext('2d');
             
-            if (charts.allocation) {
-                charts.allocation.destroy();
+            if (portfolioChart) {
+                portfolioChart.destroy();
             }
             
-            const labels = [];
-            const values = [];
+            var current = parseFloat(data.total_value);
+            var currentDate = new Date(data.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            
+            var milestones = [
+                { date: 'Aug 8', value: 995.74 },
+                { date: 'Aug 13', value: 1326.74 },
+                { date: 'Aug 19', value: 1139.64 },
+                { date: currentDate, value: current }
+            ];
+            
+            portfolioChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: milestones.map(function(m) { return m.date; }),
+                    datasets: [{
+                        label: 'Portfolio Value',
+                        data: milestones.map(function(m) { return m.value; }),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        pointBackgroundColor: '#667eea',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function createAllocationChart(data) {
+            var ctx = document.getElementById('allocationChart').getContext('2d');
+            
+            if (allocationChart) {
+                allocationChart.destroy();
+            }
+            
+            var labels = [];
+            var values = [];
             
             if (data.values) {
-                for (const symbol in data.values) {
-                    const value = parseFloat(data.values[symbol]);
+                for (var symbol in data.values) {
+                    var value = parseFloat(data.values[symbol]);
                     if (value > 0) {
                         labels.push(symbol);
                         values.push(value);
@@ -272,13 +316,13 @@
                 }
             }
             
-            const cash = parseFloat(data.cash);
+            var cash = parseFloat(data.cash);
             if (cash > 0) {
                 labels.push('Cash');
                 values.push(cash);
             }
             
-            charts.allocation = new Chart(ctx, {
+            allocationChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: labels,
@@ -302,20 +346,145 @@
             });
         }
         
+        function createPositionsChart(data) {
+            var ctx = document.getElementById('positionsChart').getContext('2d');
+            
+            if (positionsChart) {
+                positionsChart.destroy();
+            }
+            
+            var currentDate = new Date(data.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            var dates = ['Aug 8', 'Aug 13', 'Aug 19', currentDate];
+            
+            var currentValues = {};
+            if (data.values) {
+                for (var symbol in data.values) {
+                    currentValues[symbol] = parseFloat(data.values[symbol]);
+                }
+            }
+            
+            var datasets = [
+                {
+                    label: 'ARQ',
+                    data: [250, 268, 262, currentValues.ARQ || 0],
+                    borderColor: '#2ecc71',
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    tension: 0.4
+                },
+                {
+                    label: 'GEVO',
+                    data: [250, 595, 0, 0],
+                    borderColor: '#3498db',
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    tension: 0.4
+                },
+                {
+                    label: 'FEIM',
+                    data: [250, 316, 0, 0],
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    tension: 0.4
+                },
+                {
+                    label: 'UPXI',
+                    data: [200, 127, 107, currentValues.UPXI || 0],
+                    borderColor: '#f39c12',
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    tension: 0.4
+                },
+                {
+                    label: 'SERV',
+                    data: [0, 0, 250, currentValues.SERV || 0],
+                    borderColor: '#9b59b6',
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    tension: 0.4
+                },
+                {
+                    label: 'MYOMO',
+                    data: [0, 0, 240, currentValues.MYOMO || 0],
+                    borderColor: '#1abc9c',
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    tension: 0.4
+                },
+                {
+                    label: 'CABA',
+                    data: [0, 0, 181, currentValues.CABA || 0],
+                    borderColor: '#34495e',
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    tension: 0.4
+                },
+                {
+                    label: 'Cash',
+                    data: [46, 21, 100, parseFloat(data.cash) || 0],
+                    borderColor: '#95a5a6',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 3,
+                    tension: 0.4
+                }
+            ];
+            
+            positionsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                padding: 15,
+                                usePointStyle: true
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(0);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
         function createPositionCards(data) {
-            const container = document.getElementById('positions-grid');
+            var container = document.getElementById('positions-grid');
             container.innerHTML = '';
             
             if (data.values && data.prices && data.quantities) {
-                for (const symbol in data.quantities) {
-                    const quantity = parseInt(data.quantities[symbol]);
+                for (var symbol in data.quantities) {
+                    var quantity = parseInt(data.quantities[symbol]);
                     if (quantity > 0) {
-                        const value = parseFloat(data.values[symbol]);
-                        const price = parseFloat(data.prices[symbol]);
-                        const total = parseFloat(data.total_value);
-                        const percent = ((value / total) * 100).toFixed(1);
+                        var value = parseFloat(data.values[symbol]);
+                        var price = parseFloat(data.prices[symbol]);
+                        var total = parseFloat(data.total_value);
+                        var percent = ((value / total) * 100).toFixed(1);
                         
-                        const card = document.createElement('div');
+                        var card = document.createElement('div');
                         card.className = 'position-card';
                         card.innerHTML = 
                             '<div class="position-header">' +
@@ -333,12 +502,12 @@
                 }
             }
             
-            const cash = parseFloat(data.cash);
+            var cash = parseFloat(data.cash);
             if (cash > 0) {
-                const total = parseFloat(data.total_value);
-                const percent = ((cash / total) * 100).toFixed(1);
+                var total = parseFloat(data.total_value);
+                var percent = ((cash / total) * 100).toFixed(1);
                 
-                const cashCard = document.createElement('div');
+                var cashCard = document.createElement('div');
                 cashCard.className = 'position-card';
                 cashCard.innerHTML = 
                     '<div class="position-header">' +
@@ -354,23 +523,26 @@
             }
         }
         
-        async function init() {
-            const data = await loadData();
-            if (data) {
-                updateStats(data);
-                createPortfolioChart(data);
-                createAllocationChart(data);
-                createPositionsChart(data);
-                createPositionCards(data);
-                
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('content').style.display = 'block';
-            } else {
-                document.getElementById('loading').style.display = 'none';
-            }
+        function init() {
+            loadData().then(function(data) {
+                if (data) {
+                    updateStats(data);
+                    createPortfolioChart(data);
+                    createAllocationChart(data);
+                    createPositionsChart(data);
+                    createPositionCards(data);
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('content').style.display = 'block';
+                } else {
+                    document.getElementById('loading').style.display = 'none';
+                }
+            });
         }
         
         document.addEventListener('DOMContentLoaded', init);
+        
+    })();
     </script>
 </body>
 </html>
